@@ -1,31 +1,18 @@
-FROM openjdk:8u212-jdk-alpine as builder
+FROM java:8-jre-alpine
+# Use any image as your base image, or "scratch"
+# Then set fprocess to the process you want to invoke per request - i.e. "cat" or "my_binary"
 
-RUN mkdir -p /home/app/libs
+RUN apk add --no-cache curl && \
+    curl -sfL \
+    https://github.com/openfaas-incubator/of-watchdog/releases/download/0.7.6/of-watchdog > /usr/bin/fwatchdog && \
+    chmod +x /usr/bin/fwatchdog
 
-WORKDIR /home/app
+COPY ./function/app.jar /app.jar
 
-COPY ./function/app.jar /home/app/app.jar
-
-FROM openfaas/of-watchdog:0.7.6 as watchdog
-
-COPY --from=watchdog /fwatchdog /usr/bin/fwatchdog
-RUN chmod +x /usr/bin/fwatchdog
-
-RUN addgroup -S app && adduser -S -g app app
-WORKDIR /home/app
-COPY --from=builder /home/app/entrypoint/build/distributions/entrypoint-1.0.zip ./entrypoint-1.0.zip
-RUN unzip ./entrypoint-1.0.zip
-
-RUN chown -R app /home/app
-USER app
-
-ENV upstream_url="http://127.0.0.1:8082"
+ENV fprocess="java -jar /app.jar"
 ENV mode="http"
-ENV CLASSPATH="/home/app/entrypoint-1.0/lib/*"
-
-ENV fprocess="java -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap com.openfaas.entrypoint.App"
-EXPOSE 8080
+RUN touch /tmp/.lock
 
 HEALTHCHECK --interval=5s CMD [ -e /tmp/.lock ] || exit 1
-
+EXPOSE 8080
 CMD ["fwatchdog"]
