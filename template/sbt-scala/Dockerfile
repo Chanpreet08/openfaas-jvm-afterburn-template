@@ -10,6 +10,7 @@ RUN apk add --no-cache curl && \
 COPY ./function/app.jar /app.jar
 
 ENV fprocess="java -jar /app.jar"
+ENV upstream_url="http://127.0.0.1:8082"
 ENV mode="http"
 RUN touch /tmp/.lock
 
